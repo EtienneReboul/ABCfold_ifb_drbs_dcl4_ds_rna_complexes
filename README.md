@@ -41,7 +41,7 @@ Sequences are copied verbatim from the old project's AF3-webserver
 ```text
 ┌───────────────────────────────────────────────────────────────┐
 │  PRE-PROCESSING (local, needs internet)                        │
-│  worflows/preprocessing/Snakefile                                │
+│  workflows/preprocessing/Snakefile                                │
 │                                                                 │
 │  1a. Fold input   fold_input.json per complex                    │
 │                   (AlphaFold3-dialect JSON, ABCfold's own          │
@@ -56,7 +56,7 @@ Sequences are copied verbatim from the old project's AF3-webserver
                            v
 ┌───────────────────────────────────────────────────────────────┐
 │  PROCESSING (IFB cluster, no internet needed)                    │
-│  worflows/processing/submit_abcfold.sh                             │
+│  workflows/processing/submit_abcfold.sh                             │
 │                                                                     │
 │  2. ABCfold run — one `abcfold -abcopr ...` call per complex,        │
 │     launching AlphaFold3 + Boltz-2 + Chai-1 + OpenFold3 + Protenix +  │
@@ -67,7 +67,7 @@ Sequences are copied verbatim from the old project's AF3-webserver
                            │  rsync results/abcfold/, results/metadata/
                            v
 ┌───────────────────────────────────────────────────────────────┐
-│  POST-PROCESSING (local)  worflows/postprocessing/Snakefile        │
+│  POST-PROCESSING (local)  workflows/postprocessing/Snakefile        │
 │                                                                     │
 │  3a. compress_abcfold_metadata  (local fallback, if the cluster-side │
 │      step above didn't run/finish)                                    │
@@ -101,7 +101,7 @@ ABCfold_ifb_drbs_dcl4_ds_rna_complexes/
 ├── configs/
 │   ├── drb2_drb4.yaml                 ← chain spec, anchor, PLIP settings
 │   └── rna_ds_dcl4_drb2_drb4.yaml     ← chain spec, anchor, PLIP settings
-├── worflows/
+├── workflows/
 │   ├── preprocessing/Snakefile        ← stage 1 (local)
 │   ├── processing/submit_abcfold.sh   ← stage 2 SLURM submission (cluster)
 │   └── postprocessing/Snakefile       ← stage 3 (local)
@@ -140,7 +140,7 @@ conda activate af3-ifb-drbs-pipeline
 ### 2. Pre-processing (local, needs internet)
 
 ```bash
-snakemake -s worflows/preprocessing/Snakefile --cores 2 --use-conda
+snakemake -s workflows/preprocessing/Snakefile --cores 2 --use-conda
 ```
 
 Produces `data/fold_inputs/<complex>/fold_input.resolved.json` for both
@@ -149,9 +149,9 @@ complexes.
 ### 3. Processing (IFB cluster)
 
 ```bash
-bash worflows/processing/submit_abcfold.sh --prime     # once, on a login node
-bash worflows/processing/submit_abcfold.sh --test       # QoS-safe single-task test
-bash worflows/processing/submit_abcfold.sh              # full array
+bash workflows/processing/submit_abcfold.sh --prime     # once, on a login node
+bash workflows/processing/submit_abcfold.sh --test       # QoS-safe single-task test
+bash workflows/processing/submit_abcfold.sh              # full array
 ```
 
 Then `rsync` `results/abcfold/` and `results/metadata/` back locally.
@@ -159,7 +159,7 @@ Then `rsync` `results/abcfold/` and `results/metadata/` back locally.
 ### 4. Post-processing (local)
 
 ```bash
-snakemake -s worflows/postprocessing/Snakefile --cores 4 --use-conda
+snakemake -s workflows/postprocessing/Snakefile --cores 4 --use-conda
 ```
 
 Produces, per complex, under `results/<complex>/`:

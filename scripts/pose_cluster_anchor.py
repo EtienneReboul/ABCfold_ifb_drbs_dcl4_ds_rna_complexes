@@ -211,7 +211,7 @@ def main():
     if not metadata_path.exists():
         raise FileNotFoundError(
             f"{metadata_path} not found — run scripts/compress_abcfold_metadata.py "
-            f"for {args.complex} first (see worflows/postprocessing/Snakefile)."
+            f"for {args.complex} first (see workflows/postprocessing/Snakefile)."
         )
     meta = pd.read_parquet(metadata_path)
     print(f"[pose_cluster] {args.complex}: {len(meta)} models in metadata "

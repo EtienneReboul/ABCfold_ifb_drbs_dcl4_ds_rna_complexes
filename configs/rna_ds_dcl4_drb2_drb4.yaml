@@ -94,4 +94,4 @@ plip_drb2_drb4:
 # NOTE (bridge to cross later): this complex is the largest of the two
 # (5 chains, ~2200 total residues) and will need a higher-end IFB GPU for
 # the 6-backend ABCfold run and possibly the minimize/PLIP steps. Not tuned
-# yet — see worflows/processing/submit_abcfold.sh's --gres/--mem/--time flags.
+# yet — see workflows/processing/submit_abcfold.sh's --gres/--mem/--time flags.

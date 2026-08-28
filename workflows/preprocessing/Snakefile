@@ -23,7 +23,7 @@ Interface to processing stage:
   data/fold_inputs/{complex}/fold_input.resolved.json
 
 Usage:
-  snakemake -s worflows/preprocessing/Snakefile --cores 4 --use-conda
+  snakemake -s workflows/preprocessing/Snakefile --cores 4 --use-conda
 """
 
 from pathlib import Path

@@ -47,7 +47,7 @@ mmseqs2:
 
 # ── Stage 2: ABCfold run ──────────────────────────────────────────────────────
 # Model letters map 1:1 onto ABCfold's CLI flags (-a/-b/-c/-o/-p/-r); see
-# worflows/processing/submit_abcfold.sh. Every model below is run TOGETHER in
+# workflows/processing/submit_abcfold.sh. Every model below is run TOGETHER in
 # one `abcfold` invocation per complex.
 abcfold:
   models:

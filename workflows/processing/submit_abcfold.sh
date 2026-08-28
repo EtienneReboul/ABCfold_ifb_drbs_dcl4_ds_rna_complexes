@@ -18,7 +18,7 @@
 # AF3 alone (the old ../ab_initio_modelling_drbs_dcl4_ds_rna_complexes
 # project's approach, run manually via the AF3 webserver).
 #
-# MSA + templates were already resolved locally (worflows/preprocessing/Snakefile,
+# MSA + templates were already resolved locally (workflows/preprocessing/Snakefile,
 # scripts/fetch_mmseqs2_msa.py — ABCfold's own `mmseqs2msa` CLI against the
 # ColabFold MMseqs2 webserver) and embedded into fold_input.resolved.json, so
 # this script never passes --mmseqs2 or --templates: compute nodes need no
@@ -48,12 +48,12 @@
 #   login node):
 #     module load conda && conda env create -n metadata-compress -f envs/metadata_compress.yaml
 #   A run whose compression fails/times out on the cluster is NOT stuck: its
-#   raw files are simply left in place, and worflows/postprocessing/Snakefile's
+#   raw files are simply left in place, and workflows/postprocessing/Snakefile's
 #   compress_abcfold_metadata rule compresses it locally instead, the first
 #   time that Snakefile runs after the rsync.
 #
 # Prerequisites:
-#   - worflows/preprocessing/Snakefile completed (fold_input.resolved.json exists per complex)
+#   - workflows/preprocessing/Snakefile completed (fold_input.resolved.json exists per complex)
 #   - Run from the pipeline root directory
 #   - micromamba available on $PATH (ABCfold requires it to build backend envs)
 #   - `module load singularity` and `module load conda` both work (loaded automatically below)
@@ -277,7 +277,7 @@ if $PRIME; then
     ANY_JSON=$(find "$FOLD_IN_DIR" -maxdepth 2 -name 'fold_input.resolved.json' -print -quit)
     if [[ -z "$ANY_JSON" ]]; then
         echo "ERROR: no fold_input.resolved.json found under $FOLD_IN_DIR." \
-             "Run worflows/preprocessing/Snakefile first." >&2
+             "Run workflows/preprocessing/Snakefile first." >&2
         exit 1
     fi
     module load singularity   # ABCfold shells out to `singularity exec` directly for AF3
@@ -295,7 +295,7 @@ fi
 
 # ── Validate prerequisites ────────────────────────────────────────────────────
 if [[ ! -d "$FOLD_IN_DIR" ]]; then
-    echo "ERROR: $FOLD_IN_DIR not found. Run worflows/preprocessing/Snakefile first."
+    echo "ERROR: $FOLD_IN_DIR not found. Run workflows/preprocessing/Snakefile first."
     exit 1
 fi
 if [[ -z "$AF3_SIF_PATH" ]] && [[ "$MODEL_FLAG" == *a* ]]; then
@@ -311,7 +311,7 @@ if [[ ! -d "/shared/projects/npf_abinitio/conda/envs/${METADATA_ENV}" ]]; then
     echo "WARNING: conda env '$METADATA_ENV' not found — each array task's"
     echo "         post-prediction compression step (scripts/compress_abcfold_metadata.py)"
     echo "         will fail and fall back to leaving results/abcfold/<complex>/ raw"
-    echo "         (harmless — worflows/postprocessing/Snakefile compresses it locally"
+    echo "         (harmless — workflows/postprocessing/Snakefile compresses it locally"
     echo "         later instead). Fix once, on a login node:"
     echo "           module load conda && conda env create -n $METADATA_ENV -f envs/metadata_compress.yaml"
 fi
@@ -501,7 +501,7 @@ while IFS='|' read -r json out_dir done_file; do
     # {arrays.h5,model_metadata.parquet}, --delete-originals) before rsync —
     # see scripts/compress_abcfold_metadata.py's module docstring. Failure
     # here is non-fatal (prediction.done is already written above): raw
-    # files are left as-is and worflows/postprocessing/Snakefile's
+    # files are left as-is and workflows/postprocessing/Snakefile's
     # compress_abcfold_metadata rule compresses this run locally instead.
     #
     # --protein is that script's flag name (inherited unmodified from
@@ -517,7 +517,7 @@ while IFS='|' read -r json out_dir done_file; do
             --skip-merge; then
         echo "[\$(date)] COMPRESS OK: \$complex"
     else
-        echo "[\$(date)] WARNING: compression failed for \$complex (missing env at \$METADATA_PYTHON, or the script itself failed) — raw results/abcfold/\$complex/ left as-is, will be compressed locally by worflows/postprocessing/Snakefile instead"
+        echo "[\$(date)] WARNING: compression failed for \$complex (missing env at \$METADATA_PYTHON, or the script itself failed) — raw results/abcfold/\$complex/ left as-is, will be compressed locally by workflows/postprocessing/Snakefile instead"
     fi
     echo ""
 

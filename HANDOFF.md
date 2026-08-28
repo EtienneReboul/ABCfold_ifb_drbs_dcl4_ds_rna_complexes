@@ -24,7 +24,7 @@ six — see README's "Complexes modelled" table): `drb2_drb4` (binary, anchor
 
 ## Current state: scaffold complete, nothing has actually run yet
 
-Every file in `configs/`, `worflows/`, `scripts/`, `envs/` exists and is
+Every file in `configs/`, `workflows/`, `scripts/`, `envs/` exists and is
 syntax-checked (YAML parses, Python compiles, `make_multimer_af3_input.py`
 was smoke-tested and produces a correct `fold_input.json`). **No AF3/ABCfold
 job, no PLIP run, no real data of any kind has been generated.** The
@@ -33,7 +33,7 @@ job, no PLIP run, no real data of any kind has been generated.** The
 Reused verbatim (already confirmed against real completed IFB runs, per
 their own module docstrings) from `ABCfold_NPF_pipeline`:
 `scripts/abcfold_backends.py`, `scripts/compress_abcfold_metadata.py`,
-`scripts/parquet_utils.py`, and `worflows/processing/submit_abcfold.sh`'s IFB
+`scripts/parquet_utils.py`, and `workflows/processing/submit_abcfold.sh`'s IFB
 infra (AF3 `.sif`/CUDA_HOME auto-discovery, node exclusions, `--prime` flow).
 Reused verbatim from the old DRB2 project: `scripts/sanitize_cif.py`,
 `minimize_cif.py`, `fix_pdb.py`, `aggregate_summaries.py`.
@@ -46,7 +46,7 @@ MSA reuse, this project has no such cache), `scripts/pose_cluster_anchor.py`
 `tm_helix_alignment.py`'s Procrustes machinery, ported from the old
 project's `notebooks/*_domain_analysis.ipynb` cells 38-58, generalized to
 an arbitrary anchor/partner chain split), `scripts/select_top_n_per_cluster.py`
-(top 20 models/cluster by `ranking_score`), and both `worflows/*/Snakefile`s.
+(top 20 models/cluster by `ranking_score`), and both `workflows/*/Snakefile`s.
 
 ## Key design decisions worth knowing before you touch anything
 
@@ -79,7 +79,7 @@ an arbitrary anchor/partner chain split), `scripts/select_top_n_per_cluster.py`
    own `mmseqs2msa` CLI walks every `protein` entry in a multi-chain
    `fold_input.json` and fills in each chain's own MSA/templates
    correctly, but this pipeline has never actually run it against a
-   3-protein+2-RNA complex. First `worflows/preprocessing/Snakefile` run
+   3-protein+2-RNA complex. First `workflows/preprocessing/Snakefile` run
    is the first real test — inspect the resulting
    `fold_input.resolved.json` before submitting to the cluster.
 3. **ABCfold's per-backend output directory layout** — `abcfold_backends.py`
@@ -98,7 +98,7 @@ an arbitrary anchor/partner chain split), `scripts/select_top_n_per_cluster.py`
 ## Where to pick up
 
 Natural next step is likely: install `envs/pipeline.yaml`, run
-`worflows/preprocessing/Snakefile` for both complexes, inspect the two
+`workflows/preprocessing/Snakefile` for both complexes, inspect the two
 `fold_input.resolved.json` outputs by hand against the old project's
 `*_job_request.json` sequences (open item #2 above), then move to IFB for
 `--prime` + `--test`.

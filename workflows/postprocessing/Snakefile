@@ -5,7 +5,7 @@ Run locally, after rsync-ing back results/abcfold/<complex>/ from IFB.
 
   3a. compress_abcfold_metadata — trim ABCfold's raw per-sample confidence
       sprawl into model_metadata.parquet (scripts/compress_abcfold_metadata.py).
-      Best-effort local fallback: worflows/processing/submit_abcfold.sh
+      Best-effort local fallback: workflows/processing/submit_abcfold.sh
       already runs this on the cluster after each complex finishes: if that
       succeeded, this rule is a fast no-op re-verification; if it didn't
       (env missing, timed out), this is where it actually runs.
@@ -23,7 +23,7 @@ Run locally, after rsync-ing back results/abcfold/<complex>/ from IFB.
   3g. aggregate                  — merge all selected models' summary.csv per complex
 
 Usage:
-  snakemake -s worflows/postprocessing/Snakefile --cores 4 --use-conda
+  snakemake -s workflows/postprocessing/Snakefile --cores 4 --use-conda
 """
 
 import sys

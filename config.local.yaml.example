@@ -4,7 +4,7 @@
 #
 # 1. Copy this file:      cp config.local.yaml.example config.local.yaml
 # 2. Uncomment/edit only the values you want to override.
-# 3. Snakemake picks it up automatically (see worflows/*/Snakefile).
+# 3. Snakemake picks it up automatically (see workflows/*/Snakefile).
 # =============================================================================
 
 # af3:
