@@ -1,0 +1,24 @@
+name: abcfold-drbs-notebook
+# Env for notebooks/ -- interactive re-exploration of results/<complex>/
+# pose_clusters.csv (pc1/pc2 written by scripts/pose_cluster_anchor.py).
+# Not wired into any Snakefile rule (notebooks are run interactively, not
+# as a pipeline stage) -- install once:
+#   conda env create -f envs/notebook.yaml
+#   conda activate abcfold-drbs-notebook
+#   python -m ipykernel install --user --name abcfold-drbs-notebook
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.11
+  - jupyterlab>=4.0
+  - ipykernel>=6.29      # registers this env as a selectable Jupyter kernel
+  - pandas>=2.0
+  - numpy>=1.26
+  - scikit-learn>=1.4    # GaussianMixture, HDBSCAN
+  - plotly>=5.20          # interactive scatter plots
+  - kneed>=0.8             # BIC-knee detection for GMM auto-k
+  - optuna>=3.6              # TPE search for HDBSCAN hyperparameters, scored by DBCV
+  - hdbscan>=0.8               # validity_index (DBCV) for HDBSCAN tuning
+  - pip:
+      - kaleido>=0.2      # optional static PNG export for plotly figures

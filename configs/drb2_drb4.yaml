@@ -1,0 +1,33 @@
+# ─────────────────────────────────────────────
+# Complex spec — DRB2 x DRB4 binary complex
+# Protein-protein only: no DCL4, no RNA.
+# Sequences copied verbatim from the old project's AF3-webserver
+# job_request.json (../ab_initio_modelling_drbs_dcl4_ds_rna_complexes/
+# data/drb2_drb4/drb2_drb4_replica_1/fold_drb2_drb4_replica_1_job_request.json).
+# ─────────────────────────────────────────────
+
+name: drb2_drb4
+
+sequences:
+  - type: protein
+    id: A
+    name: DRB2
+    sequence: "MYKNQLQELAQRSCFNLPSYTCIREGPDHAPRFKATVNFNGEIFESPQYCSTLRQAEHSAAEVALNALSNRGPSHSLAARILDETGVYKNLLQEIAQRVGAPLPRYTTFRSGLGHQPVFTGTVELAGITFTGDPAKNKKQAEKNAAMAAWSSLKQLAKETSSSMPEPENIDELEQVIIARALINYRIKENIGTGSSSSAPVPFAKKFFMQNLRPTSPQPSPATTSRILPFICPKQPSRSSRSSLAATSGIDRIMAAALESRSYQRPQQRFANPPYVPMRQFRSQCHGMAPPVTIRTAVPVFSAPPMPPPPCTNNTQLPSSVYVPSLMRTAPPVRIAPPVTIRTAVPVFASAPPVRIRTAVKPTVEAGETRISSVQEKESIPVLPDSLEIGVEGSTITITDCEKTASKETERAEFKDSSKGEPETARERLENLKI"
+  - type: protein
+    id: B
+    name: DRB4
+    sequence: "MDHVYKGQLQAYALQHNLELPVYANEREGPPHAPRFRCNVTFCGQTFQSSEFFPTLKSAEHAAAKIAVASLTPQSPEGIDVAYKNLLQEIAQKESSLLPFYATATSGPSHAPTFTSTVEFAGKVFSGEEAKTKKLAEMSAAKVAFMSIKNGNSNQTGSPTLPSERQEDVNSNVKSSPQEIHSQPSSKVVMTPDTPSKGIKVNEDEFPDLHDAPASNAKEINVALNEPENPTNDGTLSALTTDGMKMNIASSSLPIPHNPTNVITLNAPAANGIKRNIAACSSWMPQNPTNDGSETSSCVVDESEKKKLIMGTGHLSIPTGQHVVCRPWNPEITLPQDAEMLFRDDKFIAYRLVKP"
+
+# Rigid structural anchor for pose clustering: DRB2 itself (no DCL4 in this
+# complex — matches the old project's own convention where the anchor is
+# the receptor chain, not literally always DCL4).
+anchor_chain: A
+partner_chains: [B]
+
+# ── PLIP (Stage 3, postprocessing) ────────────────────────────────────────
+plip:
+  dnareceptor: false        # protein-protein only
+  fix_pdb: false             # no RNA/DNA to canonicalise
+  chains: "[['A'], ['B']]"   # receptor = anchor (A), ligand = rest (B)
+  docker_memory: "8g"
+  docker_platform: "linux/amd64"

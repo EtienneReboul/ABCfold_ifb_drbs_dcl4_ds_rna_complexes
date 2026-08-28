@@ -1,0 +1,15 @@
+name: postprocessing
+# Env for scripts/pose_cluster_anchor.py and scripts/select_top_n_per_cluster.py.
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python=3.11
+  - gemmi>=0.7          # CIF/mmCIF parsing for Cα coordinate extraction
+  - numpy>=1.26
+  - scipy>=1.11
+  - scikit-learn>=1.3   # silhouette_score
+  - pandas>=2.0
+  - pyarrow>=15.0       # reads results/metadata/<complex>/model_metadata.parquet
+  - matplotlib>=3.8     # static SVG plots (RMSF profile, pose-cluster scatter)
+  - pyyaml>=6.0

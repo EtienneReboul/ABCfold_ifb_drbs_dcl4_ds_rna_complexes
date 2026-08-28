@@ -1,0 +1,8 @@
+name: plip-run
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  # PLIP itself runs inside Docker — no Python PLIP package needed here.
+  # This env is intentionally minimal; Docker must be installed on the host.

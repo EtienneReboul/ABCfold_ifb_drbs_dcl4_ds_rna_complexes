@@ -1,0 +1,97 @@
+# ─────────────────────────────────────────────
+# Complex spec — ds-RNA x DCL4 x DRB2 x DRB4 ternary complex
+# 5 chains: DCL4, DRB2, DRB4 (protein) + a dsRNA duplex (2 strands).
+# Sequences copied verbatim from the old project's AF3-webserver
+# job_request.json (../ab_initio_modelling_drbs_dcl4_ds_rna_complexes/
+# data/rna_ds_dcl4_drb2_drb4/rna_ds_9kbz_dcl4_drb2_drb4_replica_1/
+# fold_rna_ds_9kbz_dcl4_drb2_drb4_replica_1_job_request.json — dsRNA duplex
+# derived from PDB 9KBZ). Chain ids re-assigned here (proteins first) —
+# the old AF3-webserver output used a different internal lettering
+# (see CHAIN_INDEX comments in the old notebooks); this new pipeline
+# controls "id" explicitly so it doesn't need to match that.
+# ─────────────────────────────────────────────
+
+name: rna_ds_dcl4_drb2_drb4
+
+sequences:
+  - type: protein
+    id: A
+    name: DCL4
+    sequence: "RDEVDLSLTIPSKLLGKRDREQKNCEEEKNKNKKAKKQQKDPILLHTSAATHKFLPPPLTMPYSEIGDDLRSLDFDHADVSSDLHLTSSSSVSSFSSSSSSLFSAAGTDDPSPKMEKDPRKIARRYQVELCKKATEENVIVYLGTGCGKTHIAVMLIYELGHLVLSPKKSVCIFLAPTVALVEQQAKVIADSVNFKVAIHCGGKRIVKSHSEWEREIAANEVLVMTPQILLHNLQHCFIKMECISLLIFDECHHAQQQSNHPYAEIMKVFYKSESLQRPRIFGMTASPVVGKGSFQSENLSKSINSLENLLNAKVYSVESNVQLDGFVSSPLVKVYYYRSALSDASQSTIRYENMLEDIKQRCLASLKLLIDTHQTQTLLSMKRLLKRSHDNLIYTLLNLGLWGAIQAAKIQLNSDHNVQDEPVGKNPKSKICDTYLSMAAEALSSGVAKDENASDLLSLAALKEPLFSRKLVQLIKILSVFRLEPHMKCIIFVNRIVTARTLSCILNNLELLRSWKSDFLVGLSSGLKSMSRRSMETILKRFQSKELNLLVATKVGEEGLDIQTCCLVIRYDLPETVTSFIQSRGRARMPQSEYAFLVDSGNEKEMDLIENFKVNEDRMNLEITYRSSEETCPRLDEELYKVHETGACISGGSSISLLYKYCSRLPHDEFFQPKPEFQFKPVDEFGGTICRITLPANAPISEIESSLLPSTEAAKKDACLKAVHELHNLGVLNDFLLPDSKDEIEDELSDDEFDFDNIKGEGCSRGDLYEMRVPVLFKQKWDPSTSCVNLHSYYIMFVPHPADRIYKKFGFFMKSPLPVEAETMDIDLHLAHQRSVSVKIFPSGVTEFDNDEIRLAELFQEIALKVLFERGELIPDFVPLELQDSSRTSKSTFYLLLPLCLHDGESVISVDWVTIRNCLSSPIFKTPSVLVEDIFPPSGSHLKLANGCWNIDDVKNSLVFTTYSKQFYFVADICHGRNGFSPVKESSTKSHVESIYKLYGVELKHPAQPLLRVKPLCHVRNLLHNRMQTNLEPQELDEYFIEIPPELSHLKIKGLSKDIGSSLSLLPSIMHRMENLLVAIELKHVLSASIPEIAEVSGHRVLEALTTEKCHERLSLERLEVLGDAFLKFAVSRHLFLHHDSLDEGELTRRRSNVVNNSNLCRLAIKKNLQVYIRDQALDPTQFFAFGHPCRVTCDEVASKEVHSLNRDLGILESNTGEIRCSKGHHWLYKKTIADVVEALVGAFLVDSGFKGAVKFLKWIGVNVDFESLQVQDACIASRRYLPLTTRNNLETLENQLDYKFLHKGLLVQAFIHPSYNRHGGGCYQRLEFLGDAVLDYLMTSYFFTVFPKLKPGQLTDLRSLSVNNEALANVAVSFSLKRFLFCESIYLHEVIEDYTNFLASSPLASGQSEGPRCPKVLGDLVESCLGALFLDCGFNLNHVWTMMLSFLDPVKNLSNLQISPIKELIELCQSYKWDREISATKKDGAFTVELKVTKNGCCLTVSATGRNKREGTKKAAQLMITNLKAHENITTSHPLEDVLKNGIRNEAKLIGYNEDPIDVVDLVGLDVENLNILETFGGNSERSSSYVIRRGLPQAPSKTEDRLPQKAIIKAGGPSSKTAKSLLHETCVANCWKPPHFECCEEEGPGHLKSFVYKVILEVEDAPNMTLECYGEARATKKGAAEHAAQAAIWCLKHSGFLC"
+  - type: protein
+    id: B
+    name: DRB2
+    sequence: "MYKNQLQELAQRSCFNLPSYTCIREGPDHAPRFKATVNFNGEIFESPQYCSTLRQAEHSAAEVALNALSNRGPSHSLAARILDETGVYKNLLQEIAQRVGAPLPRYTTFRSGLGHQPVFTGTVELAGITFTGDPAKNKKQAEKNAAMAAWSSLKQLAKETSSSMPEPENIDELEQVIIARALINYRIKENIGTGSSSSAPVPFAKKFFMQNLRPTSPQPSPATTSRILPFICPKQPSRSSRSSLAATSGIDRIMAAALESRSYQRPQQRFANPPYVPMRQFRSQCHGMAPPVTIRTAVPVFSAPPMPPPPCTNNTQLPSSVYVPSLMRTAPPVRIAPPVTIRTAVPVFASAPPVRIRTAVKPTVEAGETRISSVQEKESIPVLPDSLEIGVEGSTITITDCEKTASKETERAEFKDSSKGEPETARERLENLKI"
+  - type: protein
+    id: C
+    name: DRB4
+    sequence: "MDHVYKGQLQAYALQHNLELPVYANEREGPPHAPRFRCNVTFCGQTFQSSEFFPTLKSAEHAAAKIAVASLTPQSPEGIDVAYKNLLQEIAQKESSLLPFYATATSGPSHAPTFTSTVEFAGKVFSGEEAKTKKLAEMSAAKVAFMSIKNGNSNQTGSPTLPSERQEDVNSNVKSSPQEIHSQPSSKVVMTPDTPSKGIKVNEDEFPDLHDAPASNAKEINVALNEPENPTNDGTLSALTTDGMKMNIASSSLPIPHNPTNVITLNAPAANGIKRNIAACSSWMPQNPTNDGSETSSCVVDESEKKKLIMGTGHLSIPTGQHVVCRPWNPEITLPQDAEMLFRDDKFIAYRLVKP"
+  - type: rna
+    id: D
+    name: dsRNA_strand1
+    sequence: "CUAAGAUCUUAUCGAACGCUAUGUUGGACUUAGGAUGAAUGACUCAUUCGCUUGUAG"
+  - type: rna
+    id: E
+    name: dsRNA_strand2
+    sequence: "ACAAGCGAAUGAGUCAUUCAUCCUAAGUCCAACAUAGCGUUCGAUAAGAUCUUAG"
+
+# Rigid structural anchor for pose clustering: DCL4.
+anchor_chain: A
+partner_chains: [B, C]     # DRB2, DRB4 — pose feature vector (RNA excluded, see README)
+
+# ── PLIP (Stage 3, postprocessing) ────────────────────────────────────────
+plip:
+  dnareceptor: true                        # RNA present
+  fix_pdb: true                            # RNA residue/atom canonicalisation needed
+  chains: "[['A'], ['B', 'C', 'D', 'E']]"  # receptor = anchor (DCL4), ligand = rest
+  docker_memory: "8g"
+  docker_platform: "linux/amd64"
+
+# ── PLIP: RNA-ligand pass (Stage 3f-alt / 3g-alt / 3h-alt) ────────────────
+# Second, separate PLIP invocation specifically for nucleotide-level RNA
+# contacts -- modeled on the sibling project's own
+# configs/rna_ds_dcl4_drb2_drb4_ligands.yaml (../ab_initio_modelling_drbs_dcl4_ds_rna_complexes),
+# which exists precisely because the `plip:` block above cannot see RNA
+# contacts correctly:
+#   - `dnareceptor: true` above makes PLIP absorb every nucleotide residue
+#     it recognises into the receptor and stop reporting their individual
+#     contacts -- a documented false-negative bug the sibling project hit
+#     and fixed by setting it false for RNA-ligand analysis specifically.
+#   - `chains` above restricts the receptor to DCL4 only, so even with
+#     dnareceptor fixed, DRB2-RNA and DRB4-RNA contacts are structurally
+#     invisible to that pass (PLIP never reports ligand-vs-ligand).
+# This pass omits --chains entirely (sibling project's own fix: passing RNA
+# first, e.g. [['D','E'],['A','B','C']], triggers a PLIP segfault; omitting
+# the flag lets PLIP auto-detect each RNA nucleotide as its own ligand and
+# report its contacts against every protein chain, filtered downstream).
+plip_rna_ligands:
+  dnareceptor: false
+  fix_pdb: true    # ABCfold's own RNA atom naming still needs canonicalising
+                     # (unlike the sibling project's AF3-webserver output, which
+                     # is why its own config sets this false) -- reuses the same
+                     # {fname}_fixed.pdb the main plip: pass above already builds.
+  chains: null       # omit --chains entirely -- see comment above
+  docker_memory: "8g"
+  docker_platform: "linux/amd64"
+
+# ── PLIP: DRB2-DRB4 pass (Stage 3f-alt2 / 3g-alt2 / 3h-alt2) ──────────────
+# Third PLIP invocation, for the DRB2-DRB4 protein-protein interface. The
+# main `plip:` block above puts DRB2 (B) and DRB4 (C) BOTH in the ligand
+# group (receptor = DCL4 only), and PLIP never reports ligand-vs-ligand
+# contacts -- so DRB2-DRB4 is structurally invisible to it (and to the
+# RNA-ligand pass, which is receptor-restricted the other way). This pass
+# makes DRB2 the receptor and DRB4 the sole ligand, exactly as
+# configs/drb2_drb4.yaml / configs/rna_ds_drb2_drb4.yaml do for the same
+# couple in their DCL4-free complexes. Reuses the same {fname}_fixed.pdb the
+# main pass already builds -- no extra minimize/fix_pdb work.
+plip_drb2_drb4:
+  dnareceptor: false                 # protein-protein only
+  fix_pdb: true                      # reuse the RNA-canonicalised {fname}_fixed.pdb
+  chains: "[['B'], ['C']]"           # receptor = DRB2 (B), ligand = DRB4 (C)
+  docker_memory: "8g"
+  docker_platform: "linux/amd64"
+
+# NOTE (bridge to cross later): this complex is the largest of the two
+# (5 chains, ~2200 total residues) and will need a higher-end IFB GPU for
+# the 6-backend ABCfold run and possibly the minimize/PLIP steps. Not tuned
+# yet — see worflows/processing/submit_abcfold.sh's --gres/--mem/--time flags.

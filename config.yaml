@@ -1,0 +1,106 @@
+# =============================================================================
+# ABCfold IFB DRB2/DCL4/dsRNA Complex Pipeline — Master Configuration
+# =============================================================================
+# Rebuild of ../ab_initio_modelling_drbs_dcl4_ds_rna_complexes (which
+# submitted AF3-webserver replicas by hand) using the same protocol as
+# ../../NPF-ab-initio-modelling/ABCfold_NPF_pipeline: ABCfold
+# (https://github.com/rigdenlab/ABCFold) launches AlphaFold3, Boltz-2,
+# Chai-1, OpenFold3, Protenix and RosettaFold3 TOGETHER per complex on the
+# IFB cluster, one fold_input.json with every seed listed in modelSeeds,
+# MSA/templates resolved once locally so compute nodes need no internet.
+#
+# Covers all stages:
+#   1. Fold input     — fold_input.resolved.json per complex
+#                        (configs/<complex>.yaml + this file's af3/mmseqs2 blocks)
+#   2. ABCfold run     — 6 backends together on the IFB cluster (SLURM)
+#   3. Postprocessing  — compress raw confidence sprawl, DCL4/DRB2-anchored
+#                        pose clustering, top-N/cluster selection, minimize,
+#                        fix_pdb, PLIP, aggregate
+
+# ── Complexes to run ──────────────────────────────────────────────────────────
+# One configs/<name>.yaml per entry — see configs/drb2_drb4.yaml and
+# configs/rna_ds_dcl4_drb2_drb4.yaml for the chain-spec schema.
+complexes:
+  - drb2_drb4
+  - rna_ds_dcl4_drb2_drb4
+  - rna_ds_drb2_drb4          # DCL4 dropped — see configs/rna_ds_drb2_drb4.yaml
+
+# ── Stage 1a: fold_input.json (AlphaFold3-dialect, consumed by ABCfold) ──────
+af3:
+  dialect: "alphafold3"       # fold_input.json JSON dialect (ABCfold expects this key name)
+  json_version: 1
+
+  n_replicas: 20               # j — independent seeds per complex
+  seed_strategy: "sequential"  # "sequential" | "random"
+  seed_base: 1
+  random_master_seed: 0        # only used when seed_strategy: random
+
+# ── Stage 1b: MMseqs2 "default run" — MSA + templates from the ColabFold ────
+# webserver, no curated/synthetic template override, no pocket constraint.
+# Wraps ABCfold's own `mmseqs2msa` CLI utility (ships with the abcfold PyPI
+# package). Run once per complex — every complex here is a fixed multi-chain
+# assembly (no apo/holo split, unlike ABCfold_NPF_pipeline).
+mmseqs2:
+  num_templates: 20            # ABCfold default; passed to mmseqs2msa --num_templates
+  delay: 8                     # seconds between per-complex webserver calls (politeness)
+  retries: 3                   # outer retry loop around each mmseqs2msa call
+
+# ── Stage 2: ABCfold run ──────────────────────────────────────────────────────
+# Model letters map 1:1 onto ABCfold's CLI flags (-a/-b/-c/-o/-p/-r); see
+# worflows/processing/submit_abcfold.sh. Every model below is run TOGETHER in
+# one `abcfold` invocation per complex.
+abcfold:
+  models:
+    alphafold3: true          # -a
+    boltz: true                # -b
+    chai1: true                 # -c
+    openfold3: true             # -o
+    protenix: true               # -p
+    rosettafold3: true            # -r
+
+  model_params: "/shared/bank/alphafold3/current"   # AF3 weights dir
+  af3_module_version: "3.0.2"   # version component of IFB's alphafold module/wrapper path
+  af3_sif_path: ""              # override only — empty = auto-discover (submit_abcfold.sh)
+
+  number_of_models: 5           # AF3 --num_diffusion_samples-equivalent (ABCfold's number_of_models)
+  num_recycles: 10              # AF3 recycles (ignored by OpenFold3 — see ABCfold README)
+
+# ── Stage 3a: pose clustering (DCL4/DRB2-anchor Kabsch + hierarchical RMSD) ──
+cluster:
+  n_iter: 8                   # rigid-core refinement iterations
+  core_rmsf_target: 1.5       # Angstrom — stop refining once median core RMSF is below this
+  min_core_frac: 0.4          # stop refining once the core would drop below this fraction
+                               # of the anchor chain's residue count (scales DRB2 ~400aa vs
+                               # DCL4 ~1400aa correctly, unlike a fixed residue count)
+  partner_rmsf_target: 5.0    # Angstrom — partner-chain Ca above this RMSF (after anchor-frame
+                               # alignment) are dropped from the clustering feature vector.
+                               # DRB2/DRB4 carry large disordered/linker stretches that move
+                               # independently of the folded domain actually docking against
+                               # the anchor; left untrimmed they'd dominate the pairwise-RMSD
+                               # feature vector and drown out genuine pose signal.
+  partner_min_frac: 0.4       # floor on kept partner Ca as a fraction of partner chain(s)'
+                               # total length, even if more atoms exceed partner_rmsf_target
+  max_k: 12                   # max clusters tried when silhouette-selecting k
+
+# ── Stage 3b: top-N-per-cluster selection ─────────────────────────────────────
+selection:
+  top_n: 100000                # effectively "all" -- select_top_n_per_cluster.py's
+                               # .head(top_n) just caps at the cluster's actual size,
+                               # so this stages every pose-clustered model for
+                               # minimize/fix_pdb/PLIP instead of only the top 20
+  rank_by: "ranking_score"    # backend's own ranking score (see abcfold_backends.py);
+                               # falls back to iptm for any row missing one
+
+# ── Output directories ────────────────────────────────────────────────────────
+dirs:
+  fold_inputs: "data/fold_inputs"     # generated fold_input.json per complex
+  abcfold_out: "results/abcfold"      # ABCfold outputs (raw predictions, all 6 backends)
+  metadata:    "results/metadata"     # compressed per-model confidence metadata (parquet + h5)
+  postproc:    "results"              # per-complex postprocessing results live at results/<complex>/
+  logs:        "logs"
+
+# ── PLIP / ChimeraX (Stage 3d-3g) ─────────────────────────────────────────────
+# Per-complex overrides (dnareceptor, fix_pdb, chains, docker settings) live
+# in configs/<complex>.yaml's plip: block. This is the one host-specific path:
+chimerax_bin: "/Applications/ChimeraX-1.12.app/Contents/MacOS/ChimeraX"
+plip_image: "docker.io/pharmai/plip:latest"

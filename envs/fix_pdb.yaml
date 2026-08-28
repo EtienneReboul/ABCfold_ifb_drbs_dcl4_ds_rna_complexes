@@ -1,0 +1,41 @@
+name: fix_pdb
+# Conda environment for Rule 2 (fix_pdb):
+#   - pdb4amber  : RNA/DNA residue & atom name canonicalisation (AmberTools)
+#   - PDBFixer   : missing heavy-atom / residue repair (OpenMM project)
+#   - OpenMM     : required by PDBFixer at runtime
+#
+# Install:
+#   conda env create -f envs/fix_pdb.yaml
+#   conda activate fix_pdb
+
+channels:
+  - conda-forge
+  - bioconda          # provides ambertools (pdb4amber)
+  - defaults
+
+dependencies:
+  # ── Core Python ──────────────────────────────────────────────────────────
+  - python=3.11
+
+  # ── pdb4amber (ships inside AmberTools) ──────────────────────────────────
+  # ambertools is large (~2 GB) but the conda-forge build is self-contained.
+  # If disk space is a concern you can install only the python package via pip:
+  #   pip install pdb4amber
+  # but the conda package is more reliable on Apple Silicon / Linux.
+  - ambertools>=23      # provides the `pdb4amber` CLI
+
+  # ── PDBFixer + OpenMM (required at import time by PDBFixer) ──────────────
+  - openmm>=8.1
+  - pdbfixer>=1.9
+
+  # ── Convenience ──────────────────────────────────────────────────────────
+  - pip
+
+  - pip:
+      # If you prefer pip-only installs for these two, uncomment and remove
+      # the conda entries above:
+      # - pdb4amber
+      # - pdbfixer
+      #
+      # numpy is already pulled by openmm; listed here for clarity
+      - numpy

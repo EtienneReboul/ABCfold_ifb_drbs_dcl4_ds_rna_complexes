@@ -1,0 +1,66 @@
+# ─────────────────────────────────────────────
+# Complex spec — ds-RNA x DRB2 x DRB4 complex (DCL4 dropped)
+# 4 chains: DRB2, DRB4 (protein) + a dsRNA duplex (2 strands).
+# This is configs/rna_ds_dcl4_drb2_drb4.yaml with the DCL4 chain removed
+# and the remaining chains re-lettered from A (proteins first, then the
+# dsRNA duplex). Protein/RNA sequences are byte-for-byte identical to the
+# DCL4 version's B/C/D/E chains (themselves copied verbatim from the old
+# project's AF3-webserver job_request.json — dsRNA duplex derived from
+# PDB 9KBZ).
+#
+# Rationale for the DCL4-free variant: the DCL4-containing complex
+# (rna_ds_dcl4_drb2_drb4, ~2600 tokens) hit hard architectural token
+# caps on Chai-1 (2048), Protenix (2560) and de-facto OOM on Boltz even
+# on an H200, so only 3 of 6 ABCfold backends produced structures there.
+# Without DCL4 this drops to ~900 tokens, well under every backend's
+# limit — all 6 architectures should run, restoring the pipeline's whole
+# rationale (six independent architectures, not AF3-only resampling) for
+# the DRB2/DRB4/dsRNA sub-assembly.
+# ─────────────────────────────────────────────
+
+name: rna_ds_drb2_drb4
+
+sequences:
+  - type: protein
+    id: A
+    name: DRB2
+    sequence: "MYKNQLQELAQRSCFNLPSYTCIREGPDHAPRFKATVNFNGEIFESPQYCSTLRQAEHSAAEVALNALSNRGPSHSLAARILDETGVYKNLLQEIAQRVGAPLPRYTTFRSGLGHQPVFTGTVELAGITFTGDPAKNKKQAEKNAAMAAWSSLKQLAKETSSSMPEPENIDELEQVIIARALINYRIKENIGTGSSSSAPVPFAKKFFMQNLRPTSPQPSPATTSRILPFICPKQPSRSSRSSLAATSGIDRIMAAALESRSYQRPQQRFANPPYVPMRQFRSQCHGMAPPVTIRTAVPVFSAPPMPPPPCTNNTQLPSSVYVPSLMRTAPPVRIAPPVTIRTAVPVFASAPPVRIRTAVKPTVEAGETRISSVQEKESIPVLPDSLEIGVEGSTITITDCEKTASKETERAEFKDSSKGEPETARERLENLKI"
+  - type: protein
+    id: B
+    name: DRB4
+    sequence: "MDHVYKGQLQAYALQHNLELPVYANEREGPPHAPRFRCNVTFCGQTFQSSEFFPTLKSAEHAAAKIAVASLTPQSPEGIDVAYKNLLQEIAQKESSLLPFYATATSGPSHAPTFTSTVEFAGKVFSGEEAKTKKLAEMSAAKVAFMSIKNGNSNQTGSPTLPSERQEDVNSNVKSSPQEIHSQPSSKVVMTPDTPSKGIKVNEDEFPDLHDAPASNAKEINVALNEPENPTNDGTLSALTTDGMKMNIASSSLPIPHNPTNVITLNAPAANGIKRNIAACSSWMPQNPTNDGSETSSCVVDESEKKKLIMGTGHLSIPTGQHVVCRPWNPEITLPQDAEMLFRDDKFIAYRLVKP"
+  - type: rna
+    id: C
+    name: dsRNA_strand1
+    sequence: "CUAAGAUCUUAUCGAACGCUAUGUUGGACUUAGGAUGAAUGACUCAUUCGCUUGUAG"
+  - type: rna
+    id: D
+    name: dsRNA_strand2
+    sequence: "ACAAGCGAAUGAGUCAUUCAUCCUAAGUCCAACAUAGCGUUCGAUAAGAUCUUAG"
+
+# Rigid structural anchor for pose clustering: DRB2 itself (no DCL4 in this
+# complex — matches configs/drb2_drb4.yaml's convention where the anchor is
+# the receptor protein chain, not literally always DCL4).
+anchor_chain: A
+partner_chains: [B]        # DRB4 — pose feature vector (RNA excluded, see README)
+
+# ── PLIP (Stage 3, postprocessing) ────────────────────────────────────────
+plip:
+  dnareceptor: true                    # RNA present
+  fix_pdb: true                        # RNA residue/atom canonicalisation needed
+  chains: "[['A'], ['B', 'C', 'D']]"   # receptor = anchor (DRB2), ligand = rest
+  docker_memory: "8g"
+  docker_platform: "linux/amd64"
+
+# ── PLIP: RNA-ligand pass (Stage 3f-alt / 3g-alt / 3h-alt) ────────────────
+# Same fix as configs/rna_ds_dcl4_drb2_drb4.yaml, same reasoning -- see its
+# comment for the full explanation (dnareceptor: true above suppresses
+# individual nucleotide contact reporting; chains above restricts the
+# receptor to DRB2 only, so DRB4-RNA is structurally invisible to that pass
+# too). Chain letters differ here (no DCL4): A=DRB2, B=DRB4, C/D=RNA.
+plip_rna_ligands:
+  dnareceptor: false
+  fix_pdb: true    # ABCfold's own RNA atom naming still needs canonicalising
+  chains: null       # omit --chains entirely -- PLIP segfaults if RNA is listed first
+  docker_memory: "8g"
+  docker_platform: "linux/amd64"

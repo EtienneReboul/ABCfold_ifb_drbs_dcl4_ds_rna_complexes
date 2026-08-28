@@ -1,0 +1,17 @@
+# =============================================================================
+# config.local.yaml — Personal overrides (NOT tracked by git)
+# =============================================================================
+#
+# 1. Copy this file:      cp config.local.yaml.example config.local.yaml
+# 2. Uncomment/edit only the values you want to override.
+# 3. Snakemake picks it up automatically (see worflows/*/Snakefile).
+# =============================================================================
+
+# af3:
+#   n_replicas: 2             # cut down seeds for a quick --test submission
+
+# abcfold:
+#   model_params: "/shared/bank/alphafold3/current"    # override if your site differs
+#   number_of_models: 1        # cut down samples/seed for a quick --test submission
+
+# chimerax_bin: "/Applications/ChimeraX.app/Contents/MacOS/ChimeraX"   # if not using the Daily build

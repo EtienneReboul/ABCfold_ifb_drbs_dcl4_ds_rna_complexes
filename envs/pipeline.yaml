@@ -1,0 +1,22 @@
+name: af3-ifb-drbs-pipeline
+# Controller environment — drives Snakemake orchestration.
+# Per-rule compute environments are in envs/*.yaml and built automatically
+# via --use-conda.
+#
+# Install:
+#   conda env create -f envs/pipeline.yaml
+#   conda activate af3-ifb-drbs-pipeline
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - python=3.11
+  - snakemake>=8.0
+  - snakemake-executor-plugin-slurm>=0.4   # for running Snakemake-driven steps on IFB
+  - pyyaml>=6.0
+  - conda                                   # needed for --use-conda to work
+  - mamba                                   # faster env solver for per-rule envs
+  - pip
+  - pip:
+      - snakemake-executor-plugin-slurm     # in case bioconda lags

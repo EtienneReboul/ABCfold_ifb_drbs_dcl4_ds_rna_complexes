@@ -1,0 +1,7 @@
+name: plip-aggregate
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pandas>=2.0

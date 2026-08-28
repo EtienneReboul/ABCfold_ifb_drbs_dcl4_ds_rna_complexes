@@ -1,0 +1,105 @@
+"""
+Snakefile_preprocess — Stage 1
+================================
+Run locally (needs internet for stage 1b). Prepares all inputs needed for
+ABCfold (https://github.com/rigdenlab/ABCFold) to run AlphaFold3, Boltz-2,
+Chai-1, OpenFold3, Protenix and RosettaFold3 together.
+
+  1a. Fold input — fold_input.json per complex (every replica seed inside),
+      AlphaFold3-dialect JSON, ABCfold's own native input format
+  1b. MMseqs2    — "default run" MSA + top-hit templates from the ColabFold
+      default run  webserver (no manual curation, no pocket restraint),
+                   fetched once per complex via ABCfold's own `mmseqs2msa`
+                   CLI and embedded into fold_input.json so every backend
+                   has everything it needs offline.
+
+Sequences are static (copied from the old project's AF3-webserver
+job_request.json files — see configs/<complex>.yaml), so unlike
+ABCfold_NPF_pipeline there is no UniProt download checkpoint and no
+apo/holo split — every complex here is a fixed multi-chain assembly, not a
+single protein with an optional co-folded ligand.
+
+Interface to processing stage:
+  data/fold_inputs/{complex}/fold_input.resolved.json
+
+Usage:
+  snakemake -s worflows/preprocessing/Snakefile --cores 4 --use-conda
+"""
+
+from pathlib import Path
+
+configfile: "config.yaml"
+
+if Path("config.local.yaml").exists():
+
+    configfile: "config.local.yaml"
+
+
+DIRS = config["dirs"]
+FOLD_INPUTS_DIR = Path(DIRS["fold_inputs"])
+LOG_DIR = Path(DIRS["logs"])
+AF3_CFG = config["af3"]
+MMSEQS_CFG = config["mmseqs2"]
+COMPLEXES = config["complexes"]
+
+
+rule prepare_af3_input:
+    input:
+        complex_config="configs/{complex}.yaml",
+    output:
+        json=str(FOLD_INPUTS_DIR / "{complex}" / "fold_input.json"),
+    log:
+        str(LOG_DIR / "af3_input" / "{complex}.log"),
+    conda:
+        "../../envs/preprocessing.yaml"
+    params:
+        n_replicas=AF3_CFG["n_replicas"],
+        seed_strategy=AF3_CFG["seed_strategy"],
+        seed_base=AF3_CFG["seed_base"],
+        random_master_seed=AF3_CFG["random_master_seed"],
+        dialect=AF3_CFG["dialect"],
+        json_version=AF3_CFG["json_version"],
+    shell:
+        """
+        python scripts/make_multimer_af3_input.py \\
+        --complex-config {input.complex_config} \\
+        --output {output.json} \\
+        --n-replicas {params.n_replicas} \\
+        --seed-strategy {params.seed_strategy} \\
+        --seed-base {params.seed_base} \\
+        --random-master-seed {params.random_master_seed} \\
+        --dialect {params.dialect} \\
+        --json-version {params.json_version} \\
+        >{log} 2>&1
+        """
+
+
+rule fetch_mmseqs2_msa:
+    input:
+        json=str(FOLD_INPUTS_DIR / "{complex}" / "fold_input.json"),
+    output:
+        resolved=str(FOLD_INPUTS_DIR / "{complex}" / "fold_input.resolved.json"),
+    log:
+        str(LOG_DIR / "mmseqs2_msa" / "{complex}.log"),
+    conda:
+        "../../envs/preprocessing.yaml"
+    params:
+        num_templates=MMSEQS_CFG["num_templates"],
+        retries=MMSEQS_CFG["retries"],
+        delay=MMSEQS_CFG["delay"],
+    shell:
+        """
+        python scripts/fetch_mmseqs2_msa.py \\
+        --input-json {input.json} \\
+        --output-json {output.resolved} \\
+        --num-templates {params.num_templates} \\
+        --retries {params.retries} \\
+        --delay {params.delay} \\
+        >{log} 2>&1
+        """
+
+
+rule all:
+    default_target: True
+    input:
+        expand(str(FOLD_INPUTS_DIR / "{complex}" / "fold_input.resolved.json"), complex=COMPLEXES),
