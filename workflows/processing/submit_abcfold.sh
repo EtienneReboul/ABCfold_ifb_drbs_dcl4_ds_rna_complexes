@@ -82,6 +82,17 @@
 #   bash submit_abcfold.sh --max-concurrent 2            # max parallel tasks
 #   bash submit_abcfold.sh --models abcopr               # which backends (-a-b-c-o-p-r letters)
 #   bash submit_abcfold.sh --gres gpu:a100:1             # bump up for the RNA complex
+#   bash submit_abcfold.sh --only c1,c2                  # restrict to these complex(es)
+#
+# The *_synthtmpl_* re-runs (AF3 + OpenFold3 only, custom template on
+# DRB2/DRB4) are submitted as their own batch:
+#   bash submit_abcfold.sh \
+#     --only rna_ds_dcl4_drb2_drb4_synthtmpl_01,rna_ds_dcl4_drb2_drb4_synthtmpl_02,rna_ds_dcl4_drb2_drb4_synthtmpl_03 \
+#     --models ao
+# They are the same 5-chain size as rna_ds_dcl4_drb2_drb4, so the default
+# gpu:h200:1 / 250G / 2880min profile applies unchanged. (Per-complex model
+# auto-selection from configs/<c>.yaml's `models:` block is a possible later
+# improvement; for now `--models ao` is passed explicitly.)
 #
 # ABCfold has no documented cache-and-resume split — one `abcfold` call
 # either completes or it doesn't. A retried run always passes --override
@@ -216,6 +227,7 @@ ABCFOLD_BIN="/shared/projects/npf_abinitio/conda/envs/abcfold-npf-pipeline/bin/a
 DRY_RUN=false
 TEST_MODE=false
 PRIME=false
+ONLY=""                     # comma-separated complex allowlist (empty = all pending)
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -251,6 +263,10 @@ while [[ $# -gt 0 ]]; do
             EXCLUDE_NODES="$2"; shift 2 ;;
         --exclude-nodes=*)
             EXCLUDE_NODES="${1#--exclude-nodes=}"; shift ;;
+        --only)
+            ONLY="$2"; shift 2 ;;
+        --only=*)
+            ONLY="${1#--only=}"; shift ;;
         --test)
             TEST_MODE=true; shift ;;
         *)
@@ -259,6 +275,7 @@ while [[ $# -gt 0 ]]; do
             echo "                              [--mem <size>] [--time <minutes>]"
             echo "                              [--models abcopr] [--batch-size N]"
             echo "                              [--max-concurrent N] [--exclude-nodes node1,node2]"
+            echo "                              [--only complex1,complex2]"
             exit 1 ;;
     esac
 done
@@ -321,9 +338,14 @@ PENDING_JSONS=()
 PENDING_DONE=()
 skipped=0
 
+only_filtered=0
 for JSON in "$FOLD_IN_DIR"/*/fold_input.resolved.json; do
     [[ -f "$JSON" ]] || continue
     COMPLEX=$(basename "$(dirname "$JSON")")
+    if [[ -n "$ONLY" ]] && [[ ",$ONLY," != *",$COMPLEX,"* ]]; then
+        only_filtered=$((only_filtered + 1))
+        continue
+    fi
     DONE_FILE="$ABCFOLD_OUT_DIR/$COMPLEX/prediction.done"
     if [[ -f "$DONE_FILE" ]]; then
         skipped=$((skipped + 1))
@@ -342,6 +364,7 @@ echo "============================================================"
 echo " ABCfold SLURM job array submission"
 echo " Pending complexes       : $TOTAL"
 echo " Already done            : $skipped"
+[[ -n "$ONLY" ]] && echo " --only filter            : $ONLY  (excluded $only_filtered)"
 echo " Models                  : $MODEL_FLAG"
 echo " Models/recycles per run : $NUMBER_OF_MODELS / $NUM_RECYCLES"
 echo " Batch size              : $BATCH_SIZE complex(es)/task"
@@ -361,7 +384,12 @@ echo "============================================================"
 echo ""
 
 if [[ $TOTAL -eq 0 ]]; then
-    echo "Nothing to do — all predictions already complete."
+    if [[ -n "$ONLY" && $skipped -eq 0 ]]; then
+        echo "Nothing pending for --only '$ONLY' — no fold_input.resolved.json for"
+        echo "those complex(es) yet (run workflows/preprocessing/Snakefile first)?"
+    else
+        echo "Nothing to do — all predictions already complete."
+    fi
     exit 0
 fi
 

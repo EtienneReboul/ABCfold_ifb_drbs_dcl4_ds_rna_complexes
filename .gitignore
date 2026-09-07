@@ -3,6 +3,8 @@ config.local.yaml
 
 # ── Pipeline runtime outputs ──────────────────────────────────────────────────
 data/fold_inputs/
+data/synthetic_templates/   # scripts/select_synthetic_templates.py output
+                             # (PDBs copied from results/ + manifest) — derived
 results/
 logs/
 

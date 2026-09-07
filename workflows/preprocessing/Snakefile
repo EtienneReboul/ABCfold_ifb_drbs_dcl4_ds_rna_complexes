@@ -28,6 +28,8 @@ Usage:
 
 from pathlib import Path
 
+import yaml
+
 configfile: "config.yaml"
 
 if Path("config.local.yaml").exists():
@@ -41,6 +43,28 @@ LOG_DIR = Path(DIRS["logs"])
 AF3_CFG = config["af3"]
 MMSEQS_CFG = config["mmseqs2"]
 COMPLEXES = config["complexes"]
+
+
+def synthtmpl_cfg(complex_name: str) -> dict | None:
+    """The `synthetic_template:` block of a generated *_synthtmpl_* config, or
+    None for a normal complex. These are AF3+OpenFold3 re-runs of the full
+    DCL4 complex that reuse an existing complex's MSAs and only differ by a
+    custom template injected on DRB2/DRB4 -- so they skip fetch_mmseqs2_msa
+    entirely (see rule resolve_synthtmpl) instead of re-hitting the ColabFold
+    webserver for identical sequences."""
+    path = Path(f"configs/{complex_name}.yaml")
+    if not path.exists():
+        if "_synthtmpl_" in complex_name:
+            raise FileNotFoundError(
+                f"{path} is missing -- run "
+                f"`python scripts/select_synthetic_templates.py` to generate the "
+                f"*_synthtmpl_* configs before preprocessing."
+            )
+        return None
+    return yaml.safe_load(path.read_text()).get("synthetic_template")
+
+
+SYNTHTMPL = [c for c in COMPLEXES if synthtmpl_cfg(c) is not None]
 
 
 rule prepare_af3_input:
@@ -75,6 +99,12 @@ rule prepare_af3_input:
 
 
 rule fetch_mmseqs2_msa:
+    # *_synthtmpl_* complexes are resolved by rule resolve_synthtmpl instead
+    # (same sequences as an existing complex -> reuse its MSAs, no webserver
+    # call). The negative lookahead keeps the two rules' shared output path
+    # unambiguous without a ruleorder.
+    wildcard_constraints:
+        complex=r"(?!.*_synthtmpl_).+",
     input:
         json=str(FOLD_INPUTS_DIR / "{complex}" / "fold_input.json"),
     output:
@@ -95,6 +125,63 @@ rule fetch_mmseqs2_msa:
         --num-templates {params.num_templates} \\
         --retries {params.retries} \\
         --delay {params.delay} \\
+        >{log} 2>&1
+        """
+
+
+def _synthtmpl_donor(wildcards):
+    # A frozen snapshot of the donor complex's resolved JSON, taken by
+    # scripts/select_synthetic_templates.py -- a plain file, not a rule output,
+    # so adding *_synthtmpl_* complexes never causes the baseline donor to be
+    # re-resolved against the ColabFold webserver.
+    return synthtmpl_cfg(wildcards.complex)["donor_resolved_json"]
+
+
+def _synthtmpl_template_pdb(wildcards):
+    return synthtmpl_cfg(wildcards.complex)["template_pdb"]
+
+
+def _synthtmpl_manifest(wildcards):
+    return str(Path(synthtmpl_cfg(wildcards.complex)["template_pdb"]).parent
+               / "templates_manifest.tsv")
+
+
+rule resolve_synthtmpl:
+    # Build fold_input.resolved.json for a *_synthtmpl_* re-run: take the MSA
+    # donor's resolved JSON, retitle it, strip the ColabFold templates from
+    # the mapped chains, and inject the Chai-1/Boltz DRB2+DRB4 conformation as
+    # an AF3-dialect custom template (consumed by both AF3 and OpenFold3).
+    # `template_pdb` / `templates_manifest.tsv` are produced out-of-band by
+    # scripts/select_synthetic_templates.py -- a missing-input error here means
+    # "run that selector first".
+    wildcard_constraints:
+        complex=r".*_synthtmpl_.*",
+    input:
+        fold_json=str(FOLD_INPUTS_DIR / "{complex}" / "fold_input.json"),
+        donor=_synthtmpl_donor,
+        template_pdb=_synthtmpl_template_pdb,
+        manifest=_synthtmpl_manifest,
+        complex_config="configs/{complex}.yaml",
+    output:
+        resolved=str(FOLD_INPUTS_DIR / "{complex}" / "fold_input.resolved.json"),
+    log:
+        str(LOG_DIR / "resolve_synthtmpl" / "{complex}.log"),
+    conda:
+        "../../envs/preprocessing.yaml"
+    params:
+        target_ids=lambda wc: " ".join(synthtmpl_cfg(wc.complex)["mapping"].keys()),
+        template_chains=lambda wc: " ".join(synthtmpl_cfg(wc.complex)["mapping"].values()),
+        strip=lambda wc: " ".join(synthtmpl_cfg(wc.complex).get("strip_colabfold_templates", [])),
+    shell:
+        """
+        python scripts/inject_synthetic_template.py \\
+        --donor-resolved-json {input.donor} \\
+        --target-fold-json {input.fold_json} \\
+        --template-pdb {input.template_pdb} \\
+        --target-ids {params.target_ids} \\
+        --template-chains {params.template_chains} \\
+        --strip-target-templates {params.strip} \\
+        --output-json {output.resolved} \\
         >{log} 2>&1
         """
 

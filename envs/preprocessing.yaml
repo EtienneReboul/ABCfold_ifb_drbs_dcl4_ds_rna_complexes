@@ -12,6 +12,8 @@ dependencies:
   - python=3.11
   - pyyaml>=6.0
   - numpy>=1.26        # seed_strategy: random
+  - biopython>=1.83    # scripts/inject_synthetic_template.py — single-chain mmCIF
+  - gemmi>=0.7         # scripts/inject_synthetic_template.py — residue-exact 3->1
   - pip
   - pip:
       - abcfold>=0.1    # provides the `mmseqs2msa` CLI entry point
