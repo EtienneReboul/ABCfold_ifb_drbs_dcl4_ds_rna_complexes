@@ -1,10 +1,11 @@
 # ── Personal configuration (never commit) ────────────────────────────────────
 config.local.yaml
 
-# ── Pipeline runtime outputs ──────────────────────────────────────────────────
-data/fold_inputs/
-data/synthetic_templates/   # scripts/select_synthetic_templates.py output
-                             # (PDBs copied from results/ + manifest) — derived
+# ── Pipeline runtime outputs (all derived — nothing under these is tracked) ──
+# data/fold_inputs/         preprocessing: fold_input(.resolved).json per complex
+# data/synthetic_templates/ scripts/select_synthetic_templates.py: donor snapshot,
+#                           template PDBs copied from results/, manifest
+data/
 results/
 logs/
 
