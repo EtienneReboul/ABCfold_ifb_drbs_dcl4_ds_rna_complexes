@@ -1,104 +1,142 @@
 # Handoff prompt — paste this into a new Claude Code session opened on this project
 
 I'm continuing work on `ABCfold_ifb_drbs_dcl4_ds_rna_complexes`. Read `README.md`
-first for the full pipeline overview, then read this note for context the
-README doesn't cover.
+for the pipeline overview, then this note for current state. The auto-memory
+files (`project_abcfold_drbs_pipeline.md`, `reference_ifb_cluster.md`) carry the
+full running history — this file is the "what's live right now" summary.
 
 ## What this project is
 
-A rebuild of `../ab_initio_modelling_drbs_dcl4_ds_rna_complexes` (which
-predicted DCL4/DRB2/DRB4/dsRNA complexes by manually submitting AF3-webserver
-replicas one at a time). This rebuild automates input prep + inference using
-the same protocol as the sibling `../../NPF-ab-initio-modelling/ABCfold_NPF_pipeline`
-project: ABCfold (https://github.com/rigdenlab/ABCFold) launches AlphaFold3,
-Boltz-2, Chai-1, OpenFold3, Protenix and RosettaFold3 **together** per complex
-on the IFB cluster — not AF3-only resampling. (An earlier draft of this repo
-briefly used the wrong sibling — `AF3_NPF_pipeline`, single-backend — as the
-template; that was corrected before anything downstream got built on it,
-`abcfold_backends.py` / `compress_abcfold_metadata.py` / `submit_abcfold.sh`
-are all genuinely multi-backend.)
+ABCfold (https://github.com/rigdenlab/ABCFold) launches AlphaFold3, Boltz-2,
+Chai-1, OpenFold3, Protenix and RosettaFold3 **together** per complex on the
+IFB cluster (rebuild of `../ab_initio_modelling_drbs_dcl4_ds_rna_complexes`'s
+manual AF3-webserver approach; same protocol as the sibling
+`../../NPF-ab-initio-modelling/ABCfold_NPF_pipeline`). Then: rigid-anchor pose
+clustering → top-N/cluster → ChimeraX minimize → fix_pdb → 3× PLIP passes →
+aggregate. Analysis lives in `notebooks/`.
 
-Two complexes only (a deliberately simplified subset of the old project's
-six — see README's "Complexes modelled" table): `drb2_drb4` (binary, anchor
-= DRB2 itself) and `rna_ds_dcl4_drb2_drb4` (5 chains, anchor = DCL4).
+## Complexes (`config.yaml` `complexes:`), all DONE end-to-end
 
-## Current state: scaffold complete, nothing has actually run yet
+| complex | chains | backends that produced structures | notes |
+|---|---|---|---|
+| `drb2_drb4` | DRB2, DRB4 | all 6 | binary, anchor = DRB2 |
+| `rna_ds_dcl4_drb2_drb4` | DCL4,DRB2,DRB4,dsRNA×2 (~2600 tok) | AF3, OpenFold3, RosettaFold3 (3/6) | Chai/Protenix hit hard token caps, Boltz OOM even on H200 — see memory |
+| `rna_ds_drb2_drb4` | DRB2,DRB4,dsRNA×2 (~900 tok) | all 6 | DCL4 dropped so every backend fits |
+| `rna_ds_dcl4_drb2_drb4_synthtmpl_0{1,2,3}` | = the DCL4 complex + a custom template | AF3 + OpenFold3 only | **synthetic-template re-run, see below** |
 
-Every file in `configs/`, `workflows/`, `scripts/`, `envs/` exists and is
-syntax-checked (YAML parses, Python compiles, `make_multimer_af3_input.py`
-was smoke-tested and produces a correct `fold_input.json`). **No AF3/ABCfold
-job, no PLIP run, no real data of any kind has been generated.** The
-`.gitignore`'d `data/`, `results/`, `logs/` directories are empty.
+Baseline postprocessing deliverables: `results/<complex>/all_selected_summary*.csv`.
 
-Reused verbatim (already confirmed against real completed IFB runs, per
-their own module docstrings) from `ABCfold_NPF_pipeline`:
-`scripts/abcfold_backends.py`, `scripts/compress_abcfold_metadata.py`,
-`scripts/parquet_utils.py`, and `workflows/processing/submit_abcfold.sh`'s IFB
-infra (AF3 `.sif`/CUDA_HOME auto-discovery, node exclusions, `--prime` flow).
-Reused verbatim from the old DRB2 project: `scripts/sanitize_cif.py`,
-`minimize_cif.py`, `fix_pdb.py`, `aggregate_summaries.py`.
+## Synthetic-template re-run — the current focus (commits 9c886f6, cab4433, 276082c)
 
-New for this rebuild: `scripts/make_multimer_af3_input.py` (generalizes
-single-protein `make_af3_input.py` to N protein + N RNA chains),
-`scripts/fetch_mmseqs2_msa.py` (simplified — no NPF-pocket-pipeline local
-MSA reuse, this project has no such cache), `scripts/pose_cluster_anchor.py`
-(rigid-anchor Kabsch + hierarchical RMSD clustering — forked from
-`tm_helix_alignment.py`'s Procrustes machinery, ported from the old
-project's `notebooks/*_domain_analysis.ipynb` cells 38-58, generalized to
-an arbitrary anchor/partner chain split), `scripts/select_top_n_per_cluster.py`
-(top 20 models/cluster by `ranking_score`), and both `workflows/*/Snakefile`s.
+**Idea.** In `rna_ds_dcl4_drb2_drb4`, AF3 and OpenFold3 fold the DRB2/DRB4
+disordered tails into ~60% helix → ~0 models survive the non-MoRF over-folding
+filter. The DCL4-free `rna_ds_drb2_drb4` keeps those tails disordered; its
+Chai-1/Boltz predictions pass. So: inject a top-ipTM Boltz DRB2+DRB4
+conformation back into the full complex as an AF3-dialect per-chain custom
+template on DRB2/DRB4, and re-run only AF3 + OpenFold3.
 
-## Key design decisions worth knowing before you touch anything
+**Pipeline plumbing (all committed):**
+- `scripts/select_synthetic_templates.py` — pick top-N chai1/boltz over-folding
+  survivors of `rna_ds_drb2_drb4` by ipTM (top-3 were all **boltz**, ipTM
+  0.73/0.67/0.67), snapshot the donor complex's resolved-MSA JSON, emit
+  `configs/rna_ds_dcl4_drb2_drb4_synthtmpl_NN.yaml` (structural blocks copied
+  verbatim from `configs/rna_ds_dcl4_drb2_drb4.yaml` + `synthetic_template:` +
+  `models: [alphafold3, openfold3]`), + `data/synthetic_templates/<family>/`
+  (`tmpl_0N.pdb`, `donor_resolved.json`, `templates_manifest.tsv`).
+- `scripts/inject_synthetic_template.py` — build each synthtmpl
+  `fold_input.resolved.json` from the frozen donor JSON: retitle, drop
+  ColabFold templates from DRB2/DRB4 (keep MSAs), inject one **identity-mapped**
+  single-chain mmCIF template per chain. Does the injection itself (BioPython
+  `MMCIFIO` + synthetic `revision_date`), **not** via abcfold's
+  `add_custom_template` — that path's `Bio.Align.PairwiseAligner`-based mapping
+  is BioPython-version-fragile (gave a shredded 91-fragment map under biopython
+  1.84). Valid because the template chain IS the exact same DRB2/DRB4 construct
+  as the query (verified residue-exact via `gemmi.one_letter_code`).
+- `workflows/preprocessing/Snakefile` — `rule resolve_synthtmpl`, gated by a
+  `_synthtmpl_` wildcard constraint so it and `fetch_mmseqs2_msa` never contend
+  for the shared `fold_input.resolved.json` output. synthtmpl complexes reuse
+  the donor's MSAs, no ColabFold call.
+- `workflows/processing/submit_abcfold.sh` — new `--only <csv>` complex
+  allowlist.
+- `envs/preprocessing.yaml` — + `biopython`, `gemmi`. `.gitignore` — all of
+  `data/`.
+- Postprocessing unchanged (synthtmpl complexes have identical topology and are
+  picked up by every `{complex}`-wildcard rule).
 
-- **RNA chains are excluded from the pose-clustering feature vector** —
-  only the anchor's rigid core + partner *protein* chains drive cluster
-  assignment (mixing protein Cα and RNA P/C1′ RMSD isn't meaningful). RNA
-  still rides along in the minimized/PLIP structures.
-- **PLIP runs receptor=anchor vs. ligand=everything-else in one call per
-  model**, not the old project's per-chain-pair exploded configs
-  (DCL4×DRB2, DCL4×DRB4 separately). Simpler; easy to add pairwise configs
-  back later under `configs/*.yaml` if finer interaction breakdowns are
-  needed.
-- **`min_core_frac` (fraction of anchor length) replaces the old project's
-  hardcoded `MIN_CORE_SIZE = 150` residues** — that constant was tuned for
-  DRB2 (~400aa) and would have been wrong for DCL4 (~1700aa).
-- Ranking for top-N selection uses `ranking_score` from
-  `model_metadata.parquet` (each ABCfold backend's own native ranking
-  score, unified by `compress_abcfold_metadata.py`), falling back to `iptm`
-  when a backend doesn't report one.
+**Run status:**
+- **synthtmpl_01: DONE + postprocessed + analysed.** Its IFB run was cut short
+  by an inode-quota failure at OpenFold3 seed 18/20, so the ensemble is AF3
+  100/100 + OpenFold3 90/100 (190 models), recovered locally and fully
+  postprocessed (`results/rna_ds_dcl4_drb2_drb4_synthtmpl_01/all_selected_summary*.csv`,
+  `dssp_summary.csv`, `overfolding_helix_stats.csv`,
+  `overfolding_survivors_quicklook.tsv`).
+  **RESULT: the idea works, for AlphaFold3.** AF3 DRB2 disordered tail (B
+  189-434) went **66% helix / max run 24 → 4% / 4**; ~38 of 100 AF3 models
+  pass a quick-look over-folding filter (1/200 in baseline). DRB4 tail only
+  partially rescued (run ~13, filter edge). **OpenFold3 unchanged** (60% helix)
+  — it does not act on the custom template for secondary structure. ipTM/pTM
+  unchanged (template moves SS, not confidence). A few AF3 "survivors" still
+  carry clash penalties (ranking_score ≈ −99).
+- **synthtmpl_02 + _03: RUNNING on IFB now** — job `1776278` (`--array=0-1%2`,
+  `--models ao`), submitted 2026-09-07. `1776278_0` (synthtmpl_02) RUNNING on
+  gpu-node-4, `1776278_1` (synthtmpl_03) PENDING(Resources). ~6-10 h each.
+  These use the 2nd/3rd-ranked Boltz templates — they test whether the AF3
+  rescue is robust across templates.
 
-## Open items — things that need a real IFB run to actually verify
+## IFB inode quota — cost real debugging time 2026-09-03/07 (see reference-ifb-cluster memory)
 
-1. **RNA complex GPU/mem/time sizing is not tuned** — `submit_abcfold.sh`'s
-   defaults (`gpu:l40s:1`, 80G, 600min) are sized for the smaller
-   `drb2_drb4` complex. This was an explicit "bridge to cross later
-   together" from the user at the start of this work — don't just guess at
-   numbers, ask first.
-2. **`mmseqs2msa`'s multimer behavior is assumed, not tested.** I believe
-   (per ABCFold source, `abcfold.scripts.add_mmseqs_msa`) that ABCfold's
-   own `mmseqs2msa` CLI walks every `protein` entry in a multi-chain
-   `fold_input.json` and fills in each chain's own MSA/templates
-   correctly, but this pipeline has never actually run it against a
-   3-protein+2-RNA complex. First `workflows/preprocessing/Snakefile` run
-   is the first real test — inspect the resulting
-   `fold_input.resolved.json` before submitting to the cluster.
-3. **ABCfold's per-backend output directory layout** — `abcfold_backends.py`
-   is copied verbatim from a project where it was confirmed against real
-   completed runs of *that* project's (single-protein, apo/holo) jobs. It
-   should generalize fine to multi-chain complexes (the layout is
-   per-backend, not per-topology), but this hasn't been directly confirmed
-   here yet. Run `submit_abcfold.sh --test` first and inspect
-   `results/abcfold/<complex>/` before trusting the full array.
-4. Neither `bash submit_abcfold.sh --prime` (backend env warm-up) nor the
-   `metadata-compress` conda env has been created on IFB yet for this
-   project — both are one-time, login-node, internet-required setup steps
-   documented in the README's Quick Start and in `submit_abcfold.sh`'s own
-   header comment.
+`/shared/projects/npf_abinitio` is CephFS with `ceph.quota.max_files = 500000`
+(`getfattr -n ceph.quota.max_files <dir>`), counting **all inodes**
+(files+dirs+symlinks ≈ `find | wc -l`, not the smaller `ceph.dir.rfiles`).
+`conda/` alone was ~544k → chronically over → **every write to the project
+fails with `[Errno 122]`**, not just the job that tripped it. Fixed by purging
+`conda/**/__pycache__` (~127k, `.pyc` auto-regenerate) + removing the
+`redocking` conda env (~68k). **NB `redocking` was the NPF sibling's env** —
+rebuildable from `ABCfold_NPF_pipeline/envs/redocking.yaml` (or it self-heals
+on that pipeline's next `--use-conda` run). Project now ~379k/500k. `.pyc`
+regenerate when envs run, so headroom will shrink again — a longer-term fix is
+an IFB ticket to raise `max_files`.
+
+## Notebooks
+
+`notebooks/rna_ds_dcl4_drb2_drb4_synthtmpl_domain_analysis.ipynb` (new,
+executed, committed 276082c) — the `rna_ds_dcl4_drb2_drb4_domain_analysis`
+PLIP domain-contact analysis re-pointed at synthtmpl_01. Kernel
+`abcfold-drbs-notebook`. Survivor section auto-picks from
+`overfolding_survivors_quicklook.tsv` when `filtered_models.csv` isn't present;
+`CLASH_EXCLUSIONS` starts empty (baseline's RNA(E)×PAZ clash was
+baseline-specific).
 
 ## Where to pick up
 
-Natural next step is likely: install `envs/pipeline.yaml`, run
-`workflows/preprocessing/Snakefile` for both complexes, inspect the two
-`fold_input.resolved.json` outputs by hand against the old project's
-`*_job_request.json` sequences (open item #2 above), then move to IFB for
-`--prime` + `--test`.
+1. **When `1776278_0` / `_1` finish** (check `squeue -u ereboul`; SLURM logs at
+   `/shared/projects/npf_abinitio/ABCfold_ifb_drbs_dcl4_ds_rna_complexes/results/abcfold/array_manifest/logs/task_{0,1}.{log,err}`):
+   rsync `results/abcfold/rna_ds_dcl4_drb2_drb4_synthtmpl_0{2,3}/` +
+   `results/metadata/` back. If a run failed on the quota again, recover it the
+   synthtmpl_01 way (rsync `*_model.cif` + `*_summary_confidences.json` +
+   `*_confidences_aggregated.json` only, exclude the 250-300 MB per-sample
+   `*_confidences.json` and `*_distogram.npz`, then
+   `scripts/compress_abcfold_metadata.py` locally).
+2. Local-postprocess synthtmpl_02/_03 (full chain, or light path + a ChimeraX
+   `scripts/dssp_summary.py` run for just the over-folding number). Snakemake
+   invocation on this Mac needs the conda-26.7.1 workaround: `env -u
+   CONDA_PREFIX -u CONDA_DEFAULT_ENV CONDA_SHLVL=0 PATH="<controller bin>:/usr/local/bin:/usr/bin:/bin" snakemake ...`
+   (`/usr/local/bin` for docker in the PLIP rules).
+3. Compare synthtmpl_02/_03's AF3 DRB2/DRB4 disordered-tail helix to
+   synthtmpl_01 — does the rescue hold across all 3 Boltz templates?
+4. Optionally re-run `notebooks/rna_complexes_energy_and_overfolding_filter.ipynb`
+   with the synthtmpl complexes added for the canonical (ANCHOR2-peak MoRF)
+   survivor numbers vs the quick-look filter used so far.
+
+## Older context (still true)
+
+- RNA chains excluded from the pose-clustering feature vector; PLIP =
+  receptor(anchor) vs ligand(rest) in one call, plus the dedicated
+  `plip_rna_ligands:` / `plip_drb2_drb4:` passes; top-N selection by
+  `ranking_score` (iptm fallback).
+- `submit_abcfold.sh` GPU profile: `gpu:h200:1 / 250G / 2880min` (sized on the
+  DCL4 complex). No `--prime` needed on this account — abcfold's config is
+  user-scoped and the backend envs already exist from the NPF sibling.
+- Two per-Mac Snakemake gotchas + the "module/micromamba not on PATH in
+  non-login shells" cluster gotchas are all in `reference-ifb-cluster` memory
+  and already handled in `submit_abcfold.sh`.
