@@ -75,7 +75,7 @@ def parse_args():
     p.add_argument("--sysname", required=True)
     p.add_argument("--workdir", required=True, help="results/.../calvados3_md/<sysname> directory")
     p.add_argument("--tag", required=True, help="subdirectory name for this run, e.g. smoketest_cpu or replicate_1")
-    p.add_argument("--platform", required=True, choices=["CPU", "OpenCL", "Reference"])
+    p.add_argument("--platform", required=True, choices=["CPU", "OpenCL", "CUDA", "Reference"])
     p.add_argument("--threads", type=int, default=1)
     p.add_argument("--steps", type=int, required=True)
     p.add_argument("--wfreq", type=int, required=True)
