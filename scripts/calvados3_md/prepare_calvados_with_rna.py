@@ -107,6 +107,13 @@ def parse_args():
                          "single_dsRNA example uses 0.20 M; kept at 0.15 M deliberately "
                          "here for a fair comparison, flagged per the plan")
     p.add_argument("--pH", type=float, default=7.0)
+    p.add_argument("--box-nm", type=float, default=None,
+                    help="override the auto-computed box length (nm); needed to match a "
+                         "pre-built --predocked-pdb's own box")
+    p.add_argument("--predocked-pdb", default=None,
+                    help="if set, start from this pre-built full-system PDB (see "
+                         "build_predocked_start.py) instead of topol-based random placement "
+                         "-- sets restart='pdb' and copies this file in as frestart")
     return p.parse_args()
 
 
@@ -125,7 +132,16 @@ def main():
     rna_fdomains = f"{args.rna_input_dir}/domains.yaml"
     rna_fresidues = f"{args.rna_input_dir}/residues_C2RNA.csv"
 
-    L = compute_box_length(protein_pdb, aiupred_csv, rna_pdb)
+    L = args.box_nm if args.box_nm is not None else compute_box_length(protein_pdb, aiupred_csv, rna_pdb)
+
+    if args.predocked_pdb:
+        import shutil
+        frestart = "predocked_start.pdb"
+        shutil.copy(args.predocked_pdb, f"{run_dir}/{frestart}")
+        restart_mode = "pdb"
+    else:
+        frestart = "restart.chk"
+        restart_mode = "checkpoint"
 
     config = Config(
         sysname="drb2_drb4_with_rna",
@@ -139,8 +155,8 @@ def main():
         runtime=0,
         platform=args.platform,
         threads=args.threads,
-        restart="checkpoint",
-        frestart="restart.chk",
+        restart=restart_mode,
+        frestart=frestart,
         verbose=True,
     )
     config.write(run_dir, name="config.yaml")
